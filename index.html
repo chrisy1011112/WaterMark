@@ -3,218 +3,714 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tiled Watermark Generator</title>
+  <title>Ultimate Watermark Studio</title>
+  
+  <!-- External Libraries: Google Fonts, JSZip, FileSaver -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Impact&family=Montserrat:wght@700&family=Open+Sans:ital,wght@0,400;0,700;1,400&family=Pacifico&family=Playfair+Display:ital,wght@0,700;1,400&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
   <style>
-    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
-    body { margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
+    :root {
+      --bg-color: #f0f2f5;
+      --panel-bg: #ffffff;
+      --text-color: #1c1e21;
+      --border-color: #e4e6eb;
+      --accent-color: #0066cc;
+      --accent-hover: #0052a3;
+      --input-bg: #f8f9fa;
+    }
+
+    body.dark-mode {
+      --bg-color: #18191a;
+      --panel-bg: #242526;
+      --text-color: #e4e6eb;
+      --border-color: #393a3b;
+      --accent-color: #2374e1;
+      --accent-hover: #3982e4;
+      --input-bg: #3a3b3c;
+    }
+
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { margin: 0; padding: 15px; background: var(--bg-color); color: var(--text-color); transition: background 0.3s, color 0.3s; }
     
-    .container { 
-      max-width: 1600px; 
-      margin: 0 auto; 
-      display: grid; 
-      grid-template-columns: 320px 1fr; 
-      gap: 20px; 
+    .header { display: flex; justify-content: space-between; align-items: center; max-width: 1600px; margin: 0 auto 15px auto; }
+    .header h1 { margin: 0; font-size: 1.5rem; }
+    .header-actions { display: flex; gap: 10px; }
+
+    .app-container {
+      max-width: 1600px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 15px;
       align-items: start;
     }
+
+    /* Sidebar controls styling */
+    .sidebar {
+      background: var(--panel-bg);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+    }
+
+    .accordion-item { border-bottom: 1px solid var(--border-color); margin-bottom: 10px; padding-bottom: 10px; }
+    .accordion-title { font-weight: bold; font-size: 14px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+
+    .control-group { margin-bottom: 10px; }
+    .control-group label { display: block; font-size: 12px; margin-bottom: 4px; font-weight: 600; }
+    .control-row { display: flex; gap: 8px; align-items: center; }
     
-    .sidebar { 
-      background: white; 
-      padding: 20px; 
-      border-radius: 8px; 
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--input-bg);
+      color: var(--text-color);
+      font-size: 13px;
     }
     
-    /* Make preview panel take full space */
-    .preview-area { 
-      background: white; 
-      padding: 20px; 
-      border-radius: 8px; 
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    input[type="range"] { width: 100%; }
+    input[type="color"] { border: none; width: 32px; height: 32px; border-radius: 4px; cursor: pointer; background: transparent; }
+
+    .val-disp { font-size: 11px; color: #888; float: right; font-weight: normal; }
+
+    /* Button styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: var(--accent-color);
+      color: white;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #65676b; }
+    .btn-secondary:hover { background: #4e4f50; }
+    .btn-group { display: flex; gap: 5px; }
+
+    /* File Drop Zone */
+    .file-dropzone {
+      border: 2px dashed var(--border-color);
+      border-radius: 6px;
+      padding: 15px;
+      text-align: center;
+      background: var(--input-bg);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .file-dropzone:hover { border-color: var(--accent-color); }
+
+    /* Main Display & Queue Panel */
+    .main-viewport {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .preview-stage {
+      background: var(--panel-bg);
+      border-radius: 8px;
+      padding: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--border-color);
+      min-height: 60vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 85vh;
-      width: 100%;
+      position: relative;
+      overflow: hidden;
     }
-    
-    .control-group { margin-bottom: 12px; }
-    .control-group label { display: block; font-size: 13px; margin-bottom: 4px; font-weight: 600; }
-    .control-group input[type="text"], 
-    .control-group input[type="color"] { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
-    .control-group input[type="range"] { width: 100%; }
-    
-    .value-display { font-size: 12px; color: #666; float: right; font-weight: normal; }
-    
-    .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 4px; background: #0066cc; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
-    .btn:hover { background: #0052a3; }
-    
-    /* Image display scales to fit entire available box */
-    canvas { 
-      width: 100%; 
-      height: 100%; 
-      max-height: 82vh;
-      border: 1px dashed #ccc; 
-      border-radius: 4px; 
-      background: #fafafa; 
+
+    canvas {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 4px;
       object-fit: contain;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+
+    /* Multi-File Queue Strip */
+    .file-queue {
+      background: var(--panel-bg);
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--border-color);
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      min-height: 90px;
+      align-items: center;
+    }
+
+    .queue-thumb {
+      width: 70px;
+      height: 70px;
+      border-radius: 4px;
+      object-fit: cover;
+      cursor: pointer;
+      border: 2px solid transparent;
+      opacity: 0.6;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .queue-thumb.active { border-color: var(--accent-color); opacity: 1.0; }
+    .queue-thumb:hover { opacity: 0.9; }
+
+    /* Utility Helpers */
+    .badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: var(--accent-color); color: white; }
+    .row { display: flex; gap: 8px; }
+    .col { flex: 1; }
   </style>
 </head>
 <body>
 
-  <h2 style="text-align: center; margin-bottom: 20px;">Tiled Watermark Generator</h2>
-
-  <div class="container">
-    <div class="sidebar">
-      <div class="control-group">
-        <label>1. Select Base Image</label>
-        <input type="file" id="baseImageInput" accept="image/*">
-      </div>
-
-      <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
-
-      <div class="control-group">
-        <label>Watermark Text</label>
-        <input type="text" id="textValue" value="Test">
-      </div>
-
-      <div class="control-group">
-        <label>Text Color</label>
-        <input type="color" id="textColor" value="#000000">
-      </div>
-
-      <div class="control-group">
-        <label>Font Size (px) <span class="value-display" id="textSizeVal">36px</span></label>
-        <input type="range" id="textSize" min="8" max="150" value="36">
-      </div>
-
-      <div class="control-group">
-        <label>Opacity <span class="value-display" id="textOpacityVal">0.7</span></label>
-        <input type="range" id="textOpacity" min="0.05" max="1" step="0.05" value="0.7">
-      </div>
-
-      <!-- Spacing Controls reduced to 0 for minimum gaps -->
-      <div class="control-group">
-        <label>Horizontal Gap <span class="value-display" id="spacingXVal">10px</span></label>
-        <input type="range" id="spacingX" min="0" max="500" value="10">
-      </div>
-
-      <div class="control-group">
-        <label>Vertical Gap <span class="value-display" id="spacingYVal">10px</span></label>
-        <input type="range" id="spacingY" min="0" max="400" value="10">
-      </div>
-
-      <div class="control-group">
-        <label>Text Rotation (deg) <span class="value-display" id="rotationVal">0°</span></label>
-        <input type="range" id="rotation" min="-90" max="90" value="0">
-      </div>
-
-      <button class="btn" id="downloadBtn">Download Image</button>
-    </div>
-
-    <div class="preview-area">
-      <canvas id="canvas"></canvas>
+  <div class="header">
+    <h1>Watermark Studio Pro</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="toggleDarkMode()">Toggle Theme</button>
+      <button class="btn btn-secondary" onclick="randomizeSettings()">🎲 Surprise Me</button>
+      <button class="btn btn-secondary" onclick="resetDefaults()">Reset</button>
     </div>
   </div>
 
-  <script>
-    let baseImg = null;
+  <div class="app-container">
+    
+    <!-- CONTROLS SIDEBAR -->
+    <div class="sidebar">
+      
+      <!-- 1. Multi-File Import -->
+      <div class="accordion-item">
+        <div class="accordion-title">1. Files & Batch Upload <span id="queueCount" class="badge">0 Files</span></div>
+        <div class="file-dropzone" onclick="document.getElementById('multiFileInput').click()">
+          Drag & Drop Images or Click to Upload Multiple Files
+          <input type="file" id="multiFileInput" accept="image/*" multiple style="display:none;">
+        </div>
+      </div>
 
+      <!-- 2. Watermark Type & Content -->
+      <div class="accordion-item">
+        <div class="accordion-title">2. Text & Content</div>
+        
+        <div class="control-group">
+          <label>Presets</label>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="setPreset('CONFIDENTIAL')">Confidential</button>
+            <button class="btn btn-secondary" onclick="setPreset('SAMPLE')">Sample</button>
+            <button class="btn btn-secondary" onclick="setPreset('© {year}')">© Year</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label>Watermark Text</label>
+          <textarea id="textValue" rows="2">Leo Uncopylocked</textarea>
+        </div>
+
+        <div class="control-group">
+          <label>Font Family</label>
+          <select id="fontFamily">
+            <option value="sans-serif">System Sans-Serif</option>
+            <option value="Impact">Impact (Bold Heavy)</option>
+            <option value="Cinzel">Cinzel (Serif)</option>
+            <option value="Pacifico">Pacifico (Script)</option>
+            <option value="Roboto Mono">Roboto Mono (Monospace)</option>
+            <option value="Montserrat">Montserrat</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <div class="col control-group">
+            <label>Text Color</label>
+            <input type="color" id="textColor" value="#ffffff">
+          </div>
+          <div class="col control-group">
+            <label>Case Format</label>
+            <select id="textTransform">
+              <option value="none">As Typed</option>
+              <option value="uppercase">UPPERCASE</option>
+              <option value="lowercase">lowercase</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Logo Overlay -->
+      <div class="accordion-item">
+        <div class="accordion-title">3. Logo / Image Watermark</div>
+        <div class="control-group">
+          <label>Upload Logo (PNG)</label>
+          <input type="file" id="logoInput" accept="image/*">
+        </div>
+        <div class="row">
+          <div class="col control-group">
+            <label>Logo Scale <span class="val-disp" id="logoScaleVal">20%</span></label>
+            <input type="range" id="logoScale" min="5" max="80" value="20">
+          </div>
+          <div class="col control-group">
+            <label>Logo Opacity <span class="val-disp" id="logoOpacityVal">0.5</span></label>
+            <input type="range" id="logoOpacity" min="0" max="1" step="0.05" value="0.5">
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Tiling, Grid & Layout -->
+      <div class="accordion-item">
+        <div class="accordion-title">4. Tiling & Grid Layout</div>
+        
+        <div class="control-group">
+          <label>Layout Pattern</label>
+          <select id="layoutMode">
+            <option value="tiled">Full Tiled Grid</option>
+            <option value="center">Single Center</option>
+            <option value="corners">Four Corners</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label>Horizontal Gap <span class="val-disp" id="spacingXVal">10px</span></label>
+          <input type="range" id="spacingX" min="0" max="500" value="10">
+        </div>
+
+        <div class="control-group">
+          <label>Vertical Gap <span class="val-disp" id="spacingYVal">10px</span></label>
+          <input type="range" id="spacingY" min="0" max="400" value="10">
+        </div>
+
+        <div class="control-group">
+          <label>Rotation Angle <span class="val-disp" id="rotationVal">0°</span></label>
+          <input type="range" id="rotation" min="-90" max="90" value="0">
+        </div>
+      </div>
+
+      <!-- 5. Advanced Typography Effects -->
+      <div class="accordion-item">
+        <div class="accordion-title">5. Styling, Stroke & Shadows</div>
+        
+        <div class="control-group">
+          <label>Font Size <span class="val-disp" id="textSizeVal">36px</span></label>
+          <input type="range" id="textSize" min="8" max="150" value="36">
+        </div>
+
+        <div class="control-group">
+          <label>Opacity <span class="val-disp" id="textOpacityVal">0.7</span></label>
+          <input type="range" id="textOpacity" min="0.05" max="1" step="0.05" value="0.7">
+        </div>
+
+        <div class="row">
+          <div class="col control-group">
+            <label>Outline Color</label>
+            <input type="color" id="strokeColor" value="#000000">
+          </div>
+          <div class="col control-group">
+            <label>Outline Width <span class="val-disp" id="strokeWidthVal">0px</span></label>
+            <input type="range" id="strokeWidth" min="0" max="10" value="0">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col control-group">
+            <label>Shadow Color</label>
+            <input type="color" id="shadowColor" value="#000000">
+          </div>
+          <div class="col control-group">
+            <label>Shadow Blur <span class="val-disp" id="shadowBlurVal">0px</span></label>
+            <input type="range" id="shadowBlur" min="0" max="20" value="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. Image Filters & Processing -->
+      <div class="accordion-item">
+        <div class="accordion-title">6. Image Adjustments</div>
+        
+        <div class="control-group">
+          <label>Brightness <span class="val-disp" id="brightnessVal">100%</span></label>
+          <input type="range" id="brightness" min="20" max="200" value="100">
+        </div>
+
+        <div class="control-group">
+          <label>Contrast <span class="val-disp" id="contrastVal">100%</span></label>
+          <input type="range" id="contrast" min="20" max="200" value="100">
+        </div>
+
+        <div class="row">
+          <div class="col control-group">
+            <label>Grayscale Mode</label>
+            <input type="checkbox" id="grayscaleToggle">
+          </div>
+          <div class="col control-group">
+            <label>Strip EXIF Metadata</label>
+            <input type="checkbox" id="stripExif" checked>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. Multi-File Export & Download -->
+      <div class="accordion-item">
+        <div class="accordion-title">7. Export & Save</div>
+        
+        <div class="control-group">
+          <label>Export Format</label>
+          <select id="exportFormat">
+            <option value="image/png">PNG (Lossless)</option>
+            <option value="image/jpeg">JPEG (Compressed)</option>
+          </select>
+        </div>
+
+        <div class="control-group" id="jpegQualityGroup" style="display:none;">
+          <label>JPEG Quality <span class="val-disp" id="jpegQualityVal">90%</span></label>
+          <input type="range" id="jpegQuality" min="10" max="100" value="90">
+        </div>
+
+        <button class="btn" id="downloadCurrentBtn">Download Active Image</button>
+        <button class="btn btn-secondary" id="downloadZipBtn">📦 Export All Files as ZIP</button>
+      </div>
+
+    </div>
+
+    <!-- MAIN VIEWPORT DISPLAY -->
+    <div class="main-viewport">
+      <div class="preview-stage">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <!-- Multi-File Thumbnail Queue -->
+      <div class="file-queue" id="fileQueue">
+        <div style="font-size: 12px; color: #888; text-align: center; width: 100%;">
+          No files uploaded. Drag and drop multiple images to begin.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // State Management
+    let imageQueue = []; // Array storing uploaded file objects { name, imageElement }
+    let activeImageIndex = -1;
+    let logoImg = null;
+
+    // DOM Elements Setup
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    const multiFileInput = document.getElementById('multiFileInput');
+    const fileQueue = document.getElementById('fileQueue');
+    const queueCount = document.getElementById('queueCount');
 
-    const baseImageInput = document.getElementById('baseImageInput');
+    // Controls
     const textValue = document.getElementById('textValue');
+    const fontFamily = document.getElementById('fontFamily');
     const textColor = document.getElementById('textColor');
+    const textTransform = document.getElementById('textTransform');
     const textSize = document.getElementById('textSize');
     const textOpacity = document.getElementById('textOpacity');
+    const strokeColor = document.getElementById('strokeColor');
+    const strokeWidth = document.getElementById('strokeWidth');
+    const shadowColor = document.getElementById('shadowColor');
+    const shadowBlur = document.getElementById('shadowBlur');
+    
+    const logoInput = document.getElementById('logoInput');
+    const logoScale = document.getElementById('logoScale');
+    const logoOpacity = document.getElementById('logoOpacity');
+
+    const layoutMode = document.getElementById('layoutMode');
     const spacingX = document.getElementById('spacingX');
     const spacingY = document.getElementById('spacingY');
     const rotation = document.getElementById('rotation');
-    const downloadBtn = document.getElementById('downloadBtn');
 
-    const textSizeVal = document.getElementById('textSizeVal');
-    const textOpacityVal = document.getElementById('textOpacityVal');
-    const spacingXVal = document.getElementById('spacingXVal');
-    const spacingYVal = document.getElementById('spacingYVal');
-    const rotationVal = document.getElementById('rotationVal');
+    const brightness = document.getElementById('brightness');
+    const contrast = document.getElementById('contrast');
+    const grayscaleToggle = document.getElementById('grayscaleToggle');
+    const exportFormat = document.getElementById('exportFormat');
+    const jpegQuality = document.getElementById('jpegQuality');
 
-    baseImageInput.addEventListener('change', (e) => {
+    // Event Listeners for Uploads
+    multiFileInput.addEventListener('change', handleMultiFileUpload);
+    logoInput.addEventListener('change', handleLogoUpload);
+
+    // Global drag and drop setup
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => {
+      e.preventDefault();
+      if (e.dataTransfer.files.length > 0) {
+        multiFileInput.files = e.dataTransfer.files;
+        handleMultiFileUpload();
+      }
+    });
+
+    // Handle Multi-file uploads
+    function handleMultiFileUpload() {
+      const files = Array.from(multiFileInput.files);
+      if (!files.length) return;
+
+      let loadedCount = 0;
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            imageQueue.push({ name: file.name, img: img });
+            loadedCount++;
+            if (loadedCount === files.length) {
+              if (activeImageIndex === -1) activeImageIndex = 0;
+              updateQueueUI();
+              render();
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Handle Logo file upload
+    function handleLogoUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (event) => {
-        baseImg = new Image();
-        baseImg.onload = render;
-        baseImg.src = event.target.result;
+      reader.onload = (evt) => {
+        logoImg = new Image();
+        logoImg.onload = render;
+        logoImg.src = evt.target.result;
       };
       reader.readAsDataURL(file);
-    });
+    }
 
+    // Update thumbnail bar
+    function updateQueueUI() {
+      fileQueue.innerHTML = '';
+      queueCount.textContent = `${imageQueue.length} File${imageQueue.length === 1 ? '' : 's'}`;
+
+      imageQueue.forEach((item, index) => {
+        const thumb = document.createElement('img');
+        thumb.src = item.img.src;
+        thumb.className = `queue-thumb ${index === activeImageIndex ? 'active' : ''}`;
+        thumb.title = item.name;
+        thumb.onclick = () => {
+          activeImageIndex = index;
+          updateQueueUI();
+          render();
+        };
+        fileQueue.appendChild(thumb);
+      });
+    }
+
+    // Main Canvas Render Pipeline
     function render() {
-      if (!baseImg) return;
+      if (activeImageIndex < 0 || !imageQueue[activeImageIndex]) return;
 
-      textSizeVal.textContent = `${textSize.value}px`;
-      textOpacityVal.textContent = textOpacity.value;
-      spacingXVal.textContent = `${spacingX.value}px`;
-      spacingYVal.textContent = `${spacingY.value}px`;
-      rotationVal.textContent = `${rotation.value}°`;
+      updateValueDisplays();
 
+      const currentItem = imageQueue[activeImageIndex];
+      const baseImg = currentItem.img;
+
+      // Set dimensions to match original picture
       canvas.width = baseImg.width;
       canvas.height = baseImg.height;
 
+      // Step 1: Draw base image with filters applied
+      ctx.save();
+      ctx.filter = `brightness(${brightness.value}%) contrast(${contrast.value}%) ${grayscaleToggle.checked ? 'grayscale(100%)' : ''}`;
       ctx.drawImage(baseImg, 0, 0);
+      ctx.restore();
+
+      // Step 2: Prepare Text Settings
+      let displayText = textValue.value.replace('{year}', new Date().getFullYear());
+      if (textTransform.value === 'uppercase') displayText = displayText.toUpperCase();
+      if (textTransform.value === 'lowercase') displayText = displayText.toLowerCase();
 
       const size = parseInt(textSize.value, 10);
-      ctx.font = `bold ${size}px sans-serif`;
+      ctx.font = `bold ${size}px "${fontFamily.value}", sans-serif`;
       ctx.fillStyle = textColor.value;
-      ctx.globalAlpha = parseFloat(textOpacity.value);
+      ctx.strokeStyle = strokeColor.value;
+      ctx.lineWidth = parseInt(strokeWidth.value, 10);
+      ctx.shadowColor = shadowColor.value;
+      ctx.shadowBlur = parseInt(shadowBlur.value, 10);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const text = textValue.value;
-      const textMetrics = ctx.measureText(text);
-      const measuredWidth = textMetrics.width || size;
-
-      // Calculate step size (text size + user gap)
       const gapX = parseInt(spacingX.value, 10);
       const gapY = parseInt(spacingY.value, 10);
-      const stepX = measuredWidth + gapX;
-      const stepY = size + gapY;
       const angle = (parseInt(rotation.value, 10) * Math.PI) / 180;
+      const textWidth = ctx.measureText(displayText).width || size;
+      const stepX = textWidth + gapX;
+      const stepY = size + gapY;
 
-      let rowIndex = 0;
+      // Step 3: Draw Watermark Text / Grid
+      if (displayText.trim() !== '') {
+        ctx.save();
+        ctx.globalAlpha = parseFloat(textOpacity.value);
 
-      // Extended tiling boundary to handle rotation properly
-      for (let y = -canvas.height; y < canvas.height * 2; y += stepY) {
-        const offsetX = (rowIndex % 2 === 1) ? stepX / 2 : 0;
-        
-        for (let x = -canvas.width; x < canvas.width * 2; x += stepX) {
-          ctx.save();
-          ctx.translate(x + offsetX, y);
-          if (angle !== 0) {
-            ctx.rotate(angle);
+        if (layoutMode.value === 'tiled') {
+          let rowIndex = 0;
+          for (let y = -canvas.height; y < canvas.height * 2; y += stepY) {
+            const offsetX = (rowIndex % 2 === 1) ? stepX / 2 : 0;
+            for (let x = -canvas.width; x < canvas.width * 2; x += stepX) {
+              drawTextPoint(displayText, x + offsetX, y, angle);
+            }
+            rowIndex++;
           }
-          ctx.fillText(text, 0, 0);
-          ctx.restore();
+        } else if (layoutMode.value === 'center') {
+          drawTextPoint(displayText, canvas.width / 2, canvas.height / 2, angle);
+        } else if (layoutMode.value === 'corners') {
+          const m = 100;
+          drawTextPoint(displayText, m, m, angle);
+          drawTextPoint(displayText, canvas.width - m, m, angle);
+          drawTextPoint(displayText, m, canvas.height - m, angle);
+          drawTextPoint(displayText, canvas.width - m, canvas.height - m, angle);
         }
-        rowIndex++;
+        ctx.restore();
       }
 
-      ctx.globalAlpha = 1.0;
+      // Step 4: Draw Logo Layer (if loaded)
+      if (logoImg) {
+        ctx.save();
+        ctx.globalAlpha = parseFloat(logoOpacity.value);
+        const lScale = parseInt(logoScale.value, 10) / 100;
+        const lWidth = canvas.width * lScale;
+        const lHeight = lWidth * (logoImg.height / logoImg.width);
+        
+        // Draw centered logo overlay
+        ctx.drawImage(logoImg, (canvas.width - lWidth) / 2, (canvas.height - lHeight) / 2, lWidth, lHeight);
+        ctx.restore();
+      }
     }
 
-    [textValue, textColor, textSize, textOpacity, spacingX, spacingY, rotation].forEach(input => {
-      input.addEventListener('input', render);
-    });
+    // Helper: Draw individual text node with stroke and shadow
+    function drawTextPoint(text, x, y, angle) {
+      ctx.save();
+      ctx.translate(x, y);
+      if (angle !== 0) ctx.rotate(angle);
+      
+      if (parseInt(strokeWidth.value, 10) > 0) {
+        ctx.strokeText(text, 0, 0);
+      }
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }
 
-    downloadBtn.addEventListener('click', () => {
-      if (!baseImg) return;
+    // Update real-time label values
+    function updateValueDisplays() {
+      document.getElementById('textSizeVal').textContent = `${textSize.value}px`;
+      document.getElementById('textOpacityVal').textContent = textOpacity.value;
+      document.getElementById('spacingXVal').textContent = `${spacingX.value}px`;
+      document.getElementById('spacingYVal').textContent = `${spacingY.value}px`;
+      document.getElementById('rotationVal').textContent = `${rotation.value}°`;
+      document.getElementById('strokeWidthVal').textContent = `${strokeWidth.value}px`;
+      document.getElementById('shadowBlurVal').textContent = `${shadowBlur.value}px`;
+      document.getElementById('brightnessVal').textContent = `${brightness.value}%`;
+      document.getElementById('contrastVal').textContent = `${contrast.value}%`;
+      document.getElementById('logoScaleVal').textContent = `${logoScale.value}%`;
+      document.getElementById('logoOpacityVal').textContent = `${logoOpacity.value}`;
+      document.getElementById('jpegQualityVal').textContent = `${jpegQuality.value}%`;
+
+      document.getElementById('jpegQualityGroup').style.display = exportFormat.value === 'image/jpeg' ? 'block' : 'none';
+    }
+
+    // Preset Helper
+    function setPreset(presetText) {
+      textValue.value = presetText;
+      render();
+    }
+
+    // Toggle Dark Mode
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    // Randomize styling options
+    function randomizeSettings() {
+      textSize.value = Math.floor(Math.random() * 60) + 20;
+      rotation.value = Math.floor(Math.random() * 180) - 90;
+      spacingX.value = Math.floor(Math.random() * 200);
+      spacingY.value = Math.floor(Math.random() * 200);
+      textColor.value = '#' + Math.floor(Math.random()*16777215).toString(16);
+      render();
+    }
+
+    // Reset controls
+    function resetDefaults() {
+      textValue.value = "Leo Uncopylocked";
+      textSize.value = 36;
+      textOpacity.value = 0.7;
+      spacingX.value = 10;
+      spacingY.value = 10;
+      rotation.value = 0;
+      strokeWidth.value = 0;
+      shadowBlur.value = 0;
+      brightness.value = 100;
+      contrast.value = 100;
+      grayscaleToggle.checked = false;
+      render();
+    }
+
+    // Export Single Image
+    document.getElementById('downloadCurrentBtn').addEventListener('click', () => {
+      if (activeImageIndex < 0) return;
+      const format = exportFormat.value;
+      const quality = parseFloat(jpegQuality.value) / 100;
       const link = document.createElement('a');
-      link.download = 'watermarked-image.png';
-      link.href = canvas.toDataURL('image/png');
+      link.download = `watermarked_${imageQueue[activeImageIndex].name}`;
+      link.href = canvas.toDataURL(format, quality);
       link.click();
     });
+
+    // Batch Export All Images as ZIP (Handles 2+ files)
+    document.getElementById('downloadZipBtn').addEventListener('click', async () => {
+      if (imageQueue.length === 0) return;
+
+      const zip = new JSZip();
+      const format = exportFormat.value;
+      const ext = format === 'image/jpeg' ? '.jpg' : '.png';
+      const quality = parseFloat(jpegQuality.value) / 100;
+      const originalActiveIndex = activeImageIndex;
+
+      // Render each item in queue and append to zip
+      for (let i = 0; i < imageQueue.length; i++) {
+        activeImageIndex = i;
+        render();
+
+        const dataUrl = canvas.toDataURL(format, quality);
+        const base64Data = dataUrl.replace(/^data:image\/(png|jpeg);base64,/, "");
+        const fileName = imageQueue[i].name.replace(/\.[^/.]+$/, "") + `_watermarked${ext}`;
+        
+        zip.file(fileName, base64Data, { base64: true });
+      }
+
+      // Restore active view
+      activeImageIndex = originalActiveIndex;
+      render();
+
+      // Save Zip archive
+      const zipContent = await zip.generateAsync({ type: "blob" });
+      saveAs(zipContent, "watermarked_images.zip");
+    });
+
+    // Attach real-time input listeners
+    [
+      textValue, fontFamily, textColor, textTransform, textSize, textOpacity,
+      strokeColor, strokeWidth, shadowColor, shadowBlur, logoScale, logoOpacity,
+      layoutMode, spacingX, spacingY, rotation, brightness, contrast, grayscaleToggle,
+      exportFormat, jpegQuality
+    ].forEach(elem => elem.addEventListener('input', render));
+
   </script>
 </body>
 </html>
