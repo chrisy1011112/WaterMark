@@ -7,9 +7,37 @@
   <style>
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
-    .container { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
-    .sidebar { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .preview-area { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; }
+    
+    /* Layout expanded for larger image area */
+    .container { 
+      max-width: 1400px; 
+      margin: 0 auto; 
+      display: grid; 
+      grid-template-columns: 340px 1fr; 
+      gap: 20px; 
+      align-items: start;
+    }
+    
+    .sidebar { 
+      background: white; 
+      padding: 20px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+    }
+    
+    /* Expanded canvas viewport */
+    .preview-area { 
+      background: white; 
+      padding: 20px; 
+      border-radius: 8px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+      text-align: center;
+      min-height: 80vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+    }
     
     .control-group { margin-bottom: 15px; }
     .control-group label { display: block; font-size: 14px; margin-bottom: 5px; font-weight: 600; }
@@ -17,10 +45,22 @@
     .control-group input[type="color"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
     .control-group input[type="range"] { width: 100%; }
     
-    .btn { display: block; width: 100%; padding: 10px; border: none; border-radius: 4px; background: #0066cc; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .value-display { font-size: 12px; color: #666; float: right; font-weight: normal; }
+    
+    .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 4px; background: #0066cc; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     .btn:hover { background: #0052a3; }
     
-    canvas { max-width: 100%; height: auto; border: 1px dashed #ccc; border-radius: 4px; background: #fafafa; }
+    /* Canvas renders at full resolution, responsive sizing */
+    canvas { 
+      max-width: 100%; 
+      max-height: 80vh; 
+      width: auto;
+      height: auto;
+      border: 1px dashed #ccc; 
+      border-radius: 4px; 
+      background: #fafafa; 
+      object-fit: contain;
+    }
   </style>
 </head>
 <body>
@@ -47,23 +87,24 @@
       </div>
 
       <div class="control-group">
-        <label>Font Size (px)</label>
-        <input type="range" id="textSize" min="16" max="100" value="36">
+        <label>Font Size (px) <span class="value-display" id="textSizeVal">36px</span></label>
+        <input type="range" id="textSize" min="8" max="150" value="36">
       </div>
 
       <div class="control-group">
-        <label>Opacity</label>
-        <input type="range" id="textOpacity" min="0.1" max="1" step="0.05" value="0.4">
+        <label>Opacity <span class="value-display" id="textOpacityVal">0.4</span></label>
+        <input type="range" id="textOpacity" min="0.05" max="1" step="0.05" value="0.4">
+      </div>
+
+      <!-- Extended Slider Ranges for Closer / Wider Spacing -->
+      <div class="control-group">
+        <label>Horizontal Spacing <span class="value-display" id="spacingXVal">180px</span></label>
+        <input type="range" id="spacingX" min="30" max="800" value="180">
       </div>
 
       <div class="control-group">
-        <label>Horizontal Spacing</label>
-        <input type="range" id="spacingX" min="100" max="500" value="250">
-      </div>
-
-      <div class="control-group">
-        <label>Vertical Spacing</label>
-        <input type="range" id="spacingY" min="80" max="400" value="180">
+        <label>Vertical Spacing <span class="value-display" id="spacingYVal">100px</span></label>
+        <input type="range" id="spacingY" min="20" max="600" value="100">
       </div>
 
       <button class="btn" id="downloadBtn">Download Image</button>
@@ -89,6 +130,12 @@
     const spacingY = document.getElementById('spacingY');
     const downloadBtn = document.getElementById('downloadBtn');
 
+    // Value Labels
+    const textSizeVal = document.getElementById('textSizeVal');
+    const textOpacityVal = document.getElementById('textOpacityVal');
+    const spacingXVal = document.getElementById('spacingXVal');
+    const spacingYVal = document.getElementById('spacingYVal');
+
     baseImageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -104,13 +151,20 @@
     function render() {
       if (!baseImg) return;
 
+      // Update UI displays
+      textSizeVal.textContent = `${textSize.value}px`;
+      textOpacityVal.textContent = textOpacity.value;
+      spacingXVal.textContent = `${spacingX.value}px`;
+      spacingYVal.textContent = `${spacingY.value}px`;
+
+      // Set canvas full dimensions matching source image
       canvas.width = baseImg.width;
       canvas.height = baseImg.height;
 
-      // Draw main image
+      // Draw base image
       ctx.drawImage(baseImg, 0, 0);
 
-      // Configure text styles
+      // Setup typography
       const size = parseInt(textSize.value, 10);
       ctx.font = `bold ${size}px sans-serif`;
       ctx.fillStyle = textColor.value;
@@ -124,18 +178,17 @@
 
       let rowIndex = 0;
 
-      // Loop through the canvas height and width to tile the text
-      for (let y = stepY / 2; y < canvas.height + stepY; y += stepY) {
-        // Offset every second row to create a staggered grid effect
+      // Tile watermark across canvas bounds
+      for (let y = -stepY; y < canvas.height + stepY; y += stepY) {
         const offsetX = (rowIndex % 2 === 1) ? stepX / 2 : 0;
         
-        for (let x = -stepX; x < canvas.width + stepX; x += stepX) {
+        for (let x = -stepX * 2; x < canvas.width + (stepX * 2); x += stepX) {
           ctx.fillText(text, x + offsetX, y);
         }
         rowIndex++;
       }
 
-      ctx.globalAlpha = 1.0; // Reset opacity
+      ctx.globalAlpha = 1.0;
     }
 
     [textValue, textColor, textSize, textOpacity, spacingX, spacingY].forEach(input => {
