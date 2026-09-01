@@ -8,12 +8,11 @@
     * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
     body { margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
     
-    /* Layout expanded for larger image area */
     .container { 
-      max-width: 1400px; 
+      max-width: 1600px; 
       margin: 0 auto; 
       display: grid; 
-      grid-template-columns: 340px 1fr; 
+      grid-template-columns: 320px 1fr; 
       gap: 20px; 
       align-items: start;
     }
@@ -25,37 +24,35 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
     }
     
-    /* Expanded canvas viewport */
+    /* Make preview panel take full space */
     .preview-area { 
       background: white; 
       padding: 20px; 
       border-radius: 8px; 
       box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
-      text-align: center;
-      min-height: 80vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: auto;
+      min-height: 85vh;
+      width: 100%;
     }
     
-    .control-group { margin-bottom: 15px; }
-    .control-group label { display: block; font-size: 14px; margin-bottom: 5px; font-weight: 600; }
+    .control-group { margin-bottom: 12px; }
+    .control-group label { display: block; font-size: 13px; margin-bottom: 4px; font-weight: 600; }
     .control-group input[type="text"], 
-    .control-group input[type="color"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    .control-group input[type="color"] { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
     .control-group input[type="range"] { width: 100%; }
     
     .value-display { font-size: 12px; color: #666; float: right; font-weight: normal; }
     
-    .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 4px; background: #0066cc; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 4px; background: #0066cc; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 15px; }
     .btn:hover { background: #0052a3; }
     
-    /* Canvas renders at full resolution, responsive sizing */
+    /* Image display scales to fit entire available box */
     canvas { 
-      max-width: 100%; 
-      max-height: 80vh; 
-      width: auto;
-      height: auto;
+      width: 100%; 
+      height: 100%; 
+      max-height: 82vh;
       border: 1px dashed #ccc; 
       border-radius: 4px; 
       background: #fafafa; 
@@ -74,16 +71,16 @@
         <input type="file" id="baseImageInput" accept="image/*">
       </div>
 
-      <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+      <hr style="margin: 15px 0; border: none; border-top: 1px solid #eee;">
 
       <div class="control-group">
         <label>Watermark Text</label>
-        <input type="text" id="textValue" value="Leo Uncopylocked">
+        <input type="text" id="textValue" value="Test">
       </div>
 
       <div class="control-group">
         <label>Text Color</label>
-        <input type="color" id="textColor" value="#ffffff">
+        <input type="color" id="textColor" value="#000000">
       </div>
 
       <div class="control-group">
@@ -92,19 +89,24 @@
       </div>
 
       <div class="control-group">
-        <label>Opacity <span class="value-display" id="textOpacityVal">0.4</span></label>
-        <input type="range" id="textOpacity" min="0.05" max="1" step="0.05" value="0.4">
+        <label>Opacity <span class="value-display" id="textOpacityVal">0.7</span></label>
+        <input type="range" id="textOpacity" min="0.05" max="1" step="0.05" value="0.7">
       </div>
 
-      <!-- Extended Slider Ranges for Closer / Wider Spacing -->
+      <!-- Spacing Controls reduced to 0 for minimum gaps -->
       <div class="control-group">
-        <label>Horizontal Spacing <span class="value-display" id="spacingXVal">180px</span></label>
-        <input type="range" id="spacingX" min="30" max="800" value="180">
+        <label>Horizontal Gap <span class="value-display" id="spacingXVal">10px</span></label>
+        <input type="range" id="spacingX" min="0" max="500" value="10">
       </div>
 
       <div class="control-group">
-        <label>Vertical Spacing <span class="value-display" id="spacingYVal">100px</span></label>
-        <input type="range" id="spacingY" min="20" max="600" value="100">
+        <label>Vertical Gap <span class="value-display" id="spacingYVal">10px</span></label>
+        <input type="range" id="spacingY" min="0" max="400" value="10">
+      </div>
+
+      <div class="control-group">
+        <label>Text Rotation (deg) <span class="value-display" id="rotationVal">0°</span></label>
+        <input type="range" id="rotation" min="-90" max="90" value="0">
       </div>
 
       <button class="btn" id="downloadBtn">Download Image</button>
@@ -128,13 +130,14 @@
     const textOpacity = document.getElementById('textOpacity');
     const spacingX = document.getElementById('spacingX');
     const spacingY = document.getElementById('spacingY');
+    const rotation = document.getElementById('rotation');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // Value Labels
     const textSizeVal = document.getElementById('textSizeVal');
     const textOpacityVal = document.getElementById('textOpacityVal');
     const spacingXVal = document.getElementById('spacingXVal');
     const spacingYVal = document.getElementById('spacingYVal');
+    const rotationVal = document.getElementById('rotationVal');
 
     baseImageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -151,20 +154,17 @@
     function render() {
       if (!baseImg) return;
 
-      // Update UI displays
       textSizeVal.textContent = `${textSize.value}px`;
       textOpacityVal.textContent = textOpacity.value;
       spacingXVal.textContent = `${spacingX.value}px`;
       spacingYVal.textContent = `${spacingY.value}px`;
+      rotationVal.textContent = `${rotation.value}°`;
 
-      // Set canvas full dimensions matching source image
       canvas.width = baseImg.width;
       canvas.height = baseImg.height;
 
-      // Draw base image
       ctx.drawImage(baseImg, 0, 0);
 
-      // Setup typography
       const size = parseInt(textSize.value, 10);
       ctx.font = `bold ${size}px sans-serif`;
       ctx.fillStyle = textColor.value;
@@ -172,18 +172,31 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const stepX = parseInt(spacingX.value, 10);
-      const stepY = parseInt(spacingY.value, 10);
       const text = textValue.value;
+      const textMetrics = ctx.measureText(text);
+      const measuredWidth = textMetrics.width || size;
+
+      // Calculate step size (text size + user gap)
+      const gapX = parseInt(spacingX.value, 10);
+      const gapY = parseInt(spacingY.value, 10);
+      const stepX = measuredWidth + gapX;
+      const stepY = size + gapY;
+      const angle = (parseInt(rotation.value, 10) * Math.PI) / 180;
 
       let rowIndex = 0;
 
-      // Tile watermark across canvas bounds
-      for (let y = -stepY; y < canvas.height + stepY; y += stepY) {
+      // Extended tiling boundary to handle rotation properly
+      for (let y = -canvas.height; y < canvas.height * 2; y += stepY) {
         const offsetX = (rowIndex % 2 === 1) ? stepX / 2 : 0;
         
-        for (let x = -stepX * 2; x < canvas.width + (stepX * 2); x += stepX) {
-          ctx.fillText(text, x + offsetX, y);
+        for (let x = -canvas.width; x < canvas.width * 2; x += stepX) {
+          ctx.save();
+          ctx.translate(x + offsetX, y);
+          if (angle !== 0) {
+            ctx.rotate(angle);
+          }
+          ctx.fillText(text, 0, 0);
+          ctx.restore();
         }
         rowIndex++;
       }
@@ -191,7 +204,7 @@
       ctx.globalAlpha = 1.0;
     }
 
-    [textValue, textColor, textSize, textOpacity, spacingX, spacingY].forEach(input => {
+    [textValue, textColor, textSize, textOpacity, spacingX, spacingY, rotation].forEach(input => {
       input.addEventListener('input', render);
     });
 
